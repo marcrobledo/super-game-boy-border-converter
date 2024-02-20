@@ -44,14 +44,6 @@
 				</div>
 
 				<div class="row">
-					<label for="num-palettes">Number of palettes</label>
-					<select id="num-palettes">
-						<option value="3">3</option>
-						<option value="4">4*</option>
-					</select>
-				</div>
-
-				<div class="row">
 					<label for="input-color">Transparent color</label>
 					<input type="color" id="input-color" value="#ff00ff" aria-label="transparent color" />
 				</div>
@@ -99,6 +91,9 @@
 			<div id="intro">
 				<h2 class="mt-0">About</h2>
 				<p>This tool can easily convert a 256&times;224 PNG image into SNES tile data for Super Game Boy.</p>
+				<div class="text-center mt-10 mb-20">
+					<a id="btn-donate" href="https://www.paypal.com/paypalme/marcrobledo/5"><img src="assets/octicon_heart.svg" alt="love" class="octicon" /> Donate</a>
+				</div>
 				<p>It uses <a href="https://rilden.github.io/tiledpalettequant/" target="_blank">Tiled Palette Quantization</a> by rilden to reduce and optimize palettes for SGB limitations.</p>
 				<p>Can be used with:</p>
 				<ul>
@@ -108,7 +103,7 @@
 					</li>
 					<li>
 						<strong><a href="https://github.com/MiSTer-devel/Gameboy_MiSTer?tab=readme-ov-file#custom-borders" target="_blank">MiSTer FPGA Game Boy Core</a></strong><br/>
-						MiSTer FPGA Game Boy Core allows you to load SGB borders (in .sgb format) at any time
+						MiSTer FPGA Game Boy Core allows you to load custom SGB borders (in .sgb format) at any time
 					</li>
 					<li>
 						<strong>Game Boy homebrew development</strong><br/>
@@ -152,7 +147,7 @@
 				<div class="mt-20 text-center">
 					<hr/>
 					<button type="button" id="btn-export-sgb" class="btn" disabled><img src="assets/octicon_download.svg" class="octicon" /> Download .sgb file</button><br/>
-					*<small>(all data in a single file)</small>
+					<small>(all data in a single file)</small>
 				</div>
 			</div>
 		</main>
@@ -160,8 +155,8 @@
 </div>
 
 <footer>
-	Super Game Boy Border Converter<br/>
-	made with <span class="love" title="Super love">Super <img src="assets/octicon_heart.svg" alt="love" class="octicon" /></span> by <a href="https://www.marcrobledo.com" target="_blank">Marc Robledo</a>
+	Super Game Boy Border Converter v1.0<br/>
+	made with <span class="love" title="Super love">Super <img src="assets/octicon_heart_color.svg" alt="love" class="octicon" /></span> by <a href="https://www.marcrobledo.com" target="_blank">Marc Robledo</a>
 	<img src="assets/octicon_github.svg" alt="GitHub logo" class="octicon" /> <a href="https://github.com/marcrobledo/super-game-boy-border-converter/"  target="_blank">See sourcecode in GitHub</a>
 </footer>
 

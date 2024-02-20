@@ -59,19 +59,39 @@ $(document).ready((evt) => {
 
 
 		UI.notifications.empty();
-		const props={
-			numPalettes: 3,
-			colorZero: [255, 0, 255],
-			dithering: Dither.Off,
-			ditheringWeight: 0.5,
-			ditheringMethod: DitherPattern.Diagonal4
-		};
-		let numPalettes = parseInt(document.getElementById('num-palettes').value);
-		if(numPalettes===4){
-			UI.notifications.warning('Real hardware and LLE emulators don\'t support four palettes');
-			props.numPalettes=4;
+
+		try{
+			const props={
+				numPalettes: 3,
+				fractionOfPixels: parseFloat(document.getElementById('fraction-pixels').value),
+				colorZero: [255, 0, 255],
+				dithering: DITHER_VALUES[parseInt(document.getElementById('select-dither').value)],
+				ditheringWeight: parseFloat(document.getElementById('input-dithering-weight').value),
+				ditheringMethod: DITHER_PATTERN_VALUES[parseInt(document.getElementById('select-dither-method').value)]
+			};
+
+			if(/^#[0-9a-f]{6}$/i.test(document.getElementById('input-color').value)){
+				const colorStr = document.getElementById('input-color').value;
+				props.colorZero = [
+					parseInt(colorStr.slice(1, 3), 16),
+					parseInt(colorStr.slice(3, 5), 16),
+					parseInt(colorStr.slice(5, 7), 16),
+				];
+			}else{
+				//throw new Error('Invalid color value');
+			}
+
+			if (isNaN(props.ditheringWeight)) {
+				//fix invalid dithering weight
+				props.ditheringWeight = 0.5;
+				document.getElementById('input-dithering-weight').value = props.ditheringWeight.toString();
+			}
+
+			quantizeSNESMap(document.getElementById('img-source'), props);
+		}catch(err){
+			UI.notifications.error(err.message);
 		}
-		quantizeSNESMap(document.getElementById('img-source'), props);
+
 	});
 
 	$('#btn-export-map').on('click', exportMap);
@@ -137,30 +157,6 @@ const DITHER_PATTERN_VALUES = [
 
 let worker = null;
 function quantizeSNESMap(sourceImage, props) {
-	let fractionOfPixels = parseFloat(document.getElementById('fraction-pixels').value);
-
-	let colorZeroValue = [255, 0, 255];
-	if(/^#[0-9a-f]{6}$/i.test(document.getElementById('input-color').value)){
-		const colorStr = document.getElementById('input-color').value;
-		colorZeroValue = [
-			parseInt(colorStr.slice(1, 3), 16),
-			parseInt(colorStr.slice(3, 5), 16),
-			parseInt(colorStr.slice(5, 7), 16),
-		];
-	}else{
-		//throw new Error('Invalid color value');
-	}
-
-
-	let dither = DITHER_VALUES[parseInt(document.getElementById('select-dither').value)];
-	let ditherWeight = parseFloat(document.getElementById('input-dithering-weight').value);
-	if (isNaN(ditherWeight)) {
-		ditherWeight = 0.5;
-		document.getElementById('input-dithering-weight').value = ditherWeight.toString();
-	}
-	let ditherPattern = DITHER_PATTERN_VALUES[parseInt(document.getElementById('select-dither-method'))];
-
-
 	if (worker)
 		worker.terminate();
 
@@ -221,15 +217,15 @@ function quantizeSNESMap(sourceImage, props) {
 		quantizationOptions: {
 			tileWidth: 8,
 			tileHeight: 8,
-			numPalettes: props.numPalettes,
+			numPalettes: 3,
 			colorsPerPalette: 16,
 			bitsPerChannel: 5,
-			fractionOfPixels: fractionOfPixels,
+			fractionOfPixels: props.fractionOfPixels,
 			colorZeroBehaviour: ColorZeroBehaviour.Shared,
-			colorZeroValue: colorZeroValue,
-			dither: dither,
-			ditherWeight: ditherWeight,
-			ditherPattern: ditherPattern,
+			colorZeroValue: props.colorZero,
+			dither: props.dithering,
+			ditherWeight: props.ditheringWeight,
+			ditherPattern: props.ditheringMethod
 		},
 	});
 };
@@ -258,7 +254,7 @@ function secondStep(){
 	var currentCtx=currentCanvas.getContext('2d');
 
 	/* parse palettes */
-	let numPalettes = parseInt(document.getElementById('num-palettes').value)
+	let numPalettes = 3;
 	currentPalettes=new Array(numPalettes);
 	for(var y=0; y<numPalettes; y++){
 		currentPalettes[y]=new PaletteSNES();
@@ -315,7 +311,7 @@ function secondStep(){
 		currentCtx.putImageData(currentTiles[i].toImageData(currentTiles[i].palette), (i%16) * 8, (Math.floor(i/16)) * 8);
 	}
 	if(currentTiles.length>256){
-		UI.notifications.error('More than 256 tiles');
+		UI.notifications.error('256 tiles SNES limit exceeded. Edit manually your image and try to reduce the amount of unique 8x8 tiles.');
 	}
 	
 	$('main button').prop('disabled', false);
