@@ -263,10 +263,15 @@ function secondStep(){
 		}
 	}
 
+	/* build blank tile */
+	/* first tile must be a blank tile, see https://github.com/marcrobledo/super-game-boy-border-converter/issues/2 */
+	const blankTile=new Tile4BPP();
+	blankTile.palette=currentPalettes[0];
+
 	/* parse tiles, build map */
 	currentCanvas=document.getElementById('canvas-map');
 	currentCtx=currentCanvas.getContext('2d');
-	currentTiles=new Array();
+	currentTiles=new Array(blankTile);
 	currentMap=new Map(32, 28);
 	var nDuplicates=0;
 	var maxPaletteIndex=0;
