@@ -62,7 +62,6 @@ $(document).ready((evt) => {
 
 		try{
 			const props={
-				numPalettes: 3,
 				fractionOfPixels: parseFloat(document.getElementById('fraction-pixels').value),
 				colorZero: [255, 0, 255],
 				dithering: DITHER_VALUES[parseInt(document.getElementById('select-dither').value)],
@@ -254,9 +253,9 @@ function secondStep(){
 	var currentCtx=currentCanvas.getContext('2d');
 
 	/* parse palettes */
-	let numPalettes = 3;
-	currentPalettes=new Array(numPalettes);
-	for(var y=0; y<numPalettes; y++){
+	const MAX_PALETTES = 3;
+	currentPalettes=new Array(MAX_PALETTES);
+	for(var y=0; y<MAX_PALETTES; y++){
 		currentPalettes[y]=new PaletteSNES();
 		for(var x=0; x<16; x++){
 			var imageData=currentCtx.getImageData(x*16, y*16, 1, 1).data;
@@ -270,6 +269,7 @@ function secondStep(){
 	currentTiles=new Array();
 	currentMap=new Map(32, 28);
 	var nDuplicates=0;
+	var maxPaletteIndex=0;
 	for(var y=0; y<28; y++){
 		for(var x=0; x<32; x++){
 			var imageData=currentCtx.getImageData(x*8, y*8, 8, 8).data;
@@ -295,6 +295,8 @@ function secondStep(){
 					flipY:false
 				};
 			}
+			if(attributes.paletteIndex>maxPaletteIndex)
+				maxPaletteIndex=attributes.paletteIndex;
 
 			currentMap.attributes[y*32 + x]=
 				((attributes.flipY? 1:0) << 7) |
@@ -302,6 +304,19 @@ function secondStep(){
 				((attributes.paletteIndex + 4) << 2) |
 				0x00;
 		}
+	}
+
+	const nPalettes=maxPaletteIndex + 1;
+	if(nPalettes<3){
+		while(currentPalettes.length > nPalettes){
+			currentPalettes.pop();
+		}
+		currentCanvas=document.getElementById('canvas-palettes');
+		currentCtx=currentCanvas.getContext('2d');
+		var newHeight=(currentCanvas.height / 3) * nPalettes;
+		var imageData=currentCtx.getImageData(0, 0, currentCanvas.width, newHeight);
+		currentCanvas.height=newHeight;
+		currentCtx.putImageData(imageData, 0, 0);
 	}
 	currentCanvas=document.getElementById('canvas-tiles');
 	currentCtx=currentCanvas.getContext('2d');
