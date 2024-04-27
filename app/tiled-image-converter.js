@@ -31,13 +31,13 @@
 
 
 export function convertTiledSNESImage(image){
-	convertTiledImage(image, 4, ColorRGB15);
+	convertTiledImage(image, 4, rgb24to15);
 }
 export function convertTiledGBCImage(image){
-	convertTiledImage(image, 2, ColorRGB15);
+	convertTiledImage(image, 2, rgb24to15);
 }
 
-function convertTiledImage(image, bpp, colorClass){
+function convertTiledImage(image, bpp, colorConverterFunction){
 	/* check parameters validity */
 	if(!image instanceof Image)
 		throw new Error('TiledImageConverter: image is not an instance of Image');
@@ -51,88 +51,76 @@ function convertTiledImage(image, bpp, colorClass){
 	if(bpp!==2 && bpp!==4)
 		throw new Error('TiledImageConverter: invalid bpp (can only be 2 or 4)');
 
-	if(typeof colorClass?.prototype?.equals!=='function')
-		throw new Error('TiledImageConverter: invalid colorClass');
+	if(typeof colorConverterFunction!=='function')
+		throw new Error('TiledImageConverter: invalid colorConverterFunction');
 
 
 
 	/* create temporary canvas */
 	const tempCanvas=document.createElement('canvas');
-	tempCanvas.width=8;
-	tempCanvas.height=8;
+	tempCanvas.width=image.width;
+	tempCanvas.height=image.height;
 	const tempCtx=tempCanvas.getContext('2d');
 	const blankImageData=tempCtx.getImageData(0,0,8,8);
+	tempCtx.drawImage(image, 0, 0);
 
 
 
-	/* extract tiles information */
-	const tiles=[];
+	/* extract all palettes from tiles */
+	const allPalettes=[];
 	for(var y=0; y<nRows; y++){
 		for(var x=0; x<nCols; x++){
-			tempCtx.putImageData(blankImageData, 0, 0);
-			tempCtx.drawImage(image, -x*8, -y*8);
-			const imageData=tempCtx.getImageData(0,0,8,8);
-			const tileInfo={
-				palette:[],
-				pixels:{
-					indexes:[],
-					colors:[]
-				}
-			};
+			const imageData=tempCtx.getImageData(x*8,y*8,8,8);
+			const tileColors=[];
 			for(let i=0; i<8*8*4; i+=4){
 				const r=imageData.data[i + 0];
 				const g=imageData.data[i + 1];
 				const b=imageData.data[i + 2];
-				const color=new colorClass(r, g, b);
-				const colorExists=tileInfo.palette.find((existingColor) => existingColor.equals(color));
-				if(colorExists){
-					tileInfo.pixels.indexes=tileInfo.palette.indexOf(colorExists);
-					tileInfo.pixels.colors=colorExists;
-				}else{
-					tileInfo.palette.push(color);
-					tileInfo.pixels.indexes=tileInfo.palette.indexOf(color);
-					tileInfo.pixels.colors=color;
+				const color=new colorConverterFunction(r, g, b);
+				if(tileColors.indexOf(color)!==-1){
+					tileColors.push(color);
+					if(tileColors.length>Math.pow(2, bpp))
+						throw new Error('TiledImageConverter: too many color for tile (row:'+y+', col:'+x+')');
 				}
 			}
-			tiles.push(tileInfo);
-
-			if(tileInfo.palette.size>Math.pow(2, bpp))
-				throw new Error('TiledImageConverter: too many color for tile (row:'+y+', col:'+x+')');
+			allPalettes.push(tileColors);
 		}
 	}
 
-	const tilesSortedByPaletteSize=tiles.sort((a, b) => a.palette.length < b.palette.length);
+	const uniquePalettes=allPalettes.reduce((uniquePalettes, palette) => {
+		const foundPalette=uniquePalettes.some((uniquePalette) => {
+			let foundColors=palette.reduce((nFoundColors, palette) => {
+				if(uniquePalette.indexOf(color)===-1)
+					nFoundColors++;
+			}, 0);
+
+			return foundColors===tileInfo.palette.length;
+		});
+		if(!foundPalette)
+			uniquePalettes.push(palette);
+		return uniquePalettes;
+	}, []);
+
+	const palettesSortedBySize=uniquePalettes.sort((a, b) => a.length < b.length);
 
 	const differentPalettes=tilesSortedByPaletteSize.reduce((acc, tileInfo) => {
 		//to-do
 		return acc;
 	}, []);
 
-	console.log(tilesSortedByPaletteSize);
-	return tilesSortedByPaletteSize;
+	console.log(palettesSortedBySize);
+	return palettesSortedBySize;
 }
 
 
 
 
 
-class ColorRGB15{
-	constructor(r8, g8, b8){
-		this.r8=r8;
-		this.g8=g8;
-		this.b8=b8;
-		this.r=ColorRGB15.to5bit(r8);
-		this.g=ColorRGB15.to5bit(g8);
-		this.b=ColorRGB15.to5bit(b8);
+const RESCALE_24TO15BIT=8.22580645161291;
+function rgb24to15(r8, g8, b8){
+	const r5=Math.round(r8/RESCALE_24TO15BIT) & 0b00011111;
+	const g5=Math.round(g8/RESCALE_24TO15BIT) & 0b00011111;
+	const b5=Math.round(b8/RESCALE_24TO15BIT) & 0b00011111;
 
-		this.data=(this.b << 10) + (this.g << 5) + this.r;
-	}
-	equals(color2){
-		return this.data===color2.data;
-	}
-	static RESCALE_24TO15BIT=8.22580645161291;
-	static BIT5_MASK=0x1f;
-	static to5bit(color){
-		return Math.round(color/ColorRGB15.RESCALE_24TO15BIT) & ColorRGB15.BIT5_MASK;
-	}
+	return (b5 << 10) + (g5 << 5) + r5;
 }
