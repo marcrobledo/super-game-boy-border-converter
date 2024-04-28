@@ -26,8 +26,8 @@ As of palettes and colors, you don't need to worry, since the SGB Converter will
 However, the algorithm isn't perfect and the border might lose quality if it's too complex.
 
 ## Advanced: attach your own palette
-You can force the converter to use your own palette and skip the palette reduction process, which will allow you to achieve a lossless result (no colors will be lost) if done correctly.
-This process is a little laborious. I recommend it only iif you really understand how retro videogame consoles graphics work and want to get the best result.
+You can force the converter to use your own palettes and skip the palette reduction process, which will allow you to achieve a lossless result (no colors will be lost) if done correctly.
+This process is a little laborious. I recommend it only if you really understand how retro videogame consoles graphics work and want to get the best result.
 
 Take a look at this image:
 
@@ -38,4 +38,4 @@ Take a look at this image:
 - each tile includes the 16 colors that make up each palette
 - the rest of the image is the border itself
 
-By attaching an image like this to the SGB Converter, you are providing how exactly the three palettes will be, so the Converter does not need to run the random algorithm. If your border tiles can be assigned to any of those three palettes, your border won't lose any color information.
+By attaching an image like this to the SGB Converter, you are providing information on how exactly the three palettes will be, so the Converter does not need to run the random algorithm. If all your border tiles match any of those three palettes, your border won't lose any color information.
