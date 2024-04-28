@@ -42,6 +42,8 @@ body{
 .text-center{text-align:center}
 .text-right{text-align:right}
 .text-muted{color:var(--color-muted); text-decoration:line-through;}
+.zoomable:hover{cursor:zoom-in}
+.zoomable.zoom-out:hover{cursor:zoom-out}
 .clickable:hover{cursor:pointer}
 span.clickable:hover{text-decoration:underline}
 .hide{display:none}
@@ -51,11 +53,12 @@ span.clickable:hover{text-decoration:underline}
 .mt-0{margin-top: 0 !important;}
 .mb-20{margin-bottom: 20px !important;}
 .mb-10{margin-bottom: 10px !important;}
+.mb-5{margin-bottom: 5px !important;}
 .mb-0{margin-bottom: 0 !important;}
 
 
 #wrapper{
-	width: 880px;
+	width: 904px;
 	margin: 24px auto;
 	display:flex;
 	background-color: var(--color-fg);

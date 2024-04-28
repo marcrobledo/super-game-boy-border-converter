@@ -25,7 +25,7 @@
 			</header>
 			<hr/>
 
-			<img id="img-source" src="assets/example.png" alt="source image" />
+			<img id="img-source" alt="source image" />
 
 			<div class="mt-10">
 				<button id="btn-import" class="btn"><img src="assets/octicon_upload.svg" class="octicon" /> Import image</button>
@@ -117,17 +117,17 @@
 				<h2 class="mt-0">Result</h2>
 				<div>
 					<div class="text-center">
-						<canvas id="canvas-map" width="256" height="224"></canvas><br/>					
+						<div class="mb-5"><canvas id="canvas-map" width="256" height="224" class="zoomable"></canvas></div>
 						<button type="button" id="btn-export-map" class="btn" disabled><img src="assets/octicon_download.svg" class="octicon" /> Export map+attributes</button>
 					</div>
 				</div>
 
-				<div class="row flex-space-between">
+				<div class="row flex-space-between" style="align-items: start;">
 					<div style="width:calc(50% - 8px)">
 						<h2>Tiles</h2>
 						<div class="text-center">
-							<div style="display:flex; height:128px; justify-content:center; align-items:center;">
-								<canvas id="canvas-tiles" width="128" height="8"></canvas>
+							<div class="mb-5" style="display:flex; justify-content:center; align-items:center;">
+								<canvas id="canvas-tiles" width="128" height="8" class="zoomable"></canvas>
 							</div>
 							<button type="button" id="btn-export-tiles" class="btn" disabled><img src="assets/octicon_download.svg" class="octicon" /> Export tiles</button>
 						</div>
@@ -136,9 +136,10 @@
 					<div style="width:calc(50% - 8px)">
 						<h2>Palettes</h2>
 						<div class="text-center">
-							<div style="display:flex; height:128px; justify-content:center; align-items:center;">
+							<div class="mb-5" style="display:flex; justify-content:center; align-items:center;">
 								<canvas id="canvas-palettes" width="256" height="48"></canvas>
 							</div>
+							<div id="lossless-message" class="mb-5 hide"><img src="assets/octicon_check.svg" class="octicon" /> No colors lost!</div>
 							<button type="button" id="btn-export-palettes" class="btn" disabled><img src="assets/octicon_download.svg" class="octicon" /> Export palettes</button>
 						</div>
 					</div>
@@ -155,7 +156,7 @@
 </div>
 
 <footer>
-	Super Game Boy Border Converter v1.2<br/>
+	Super Game Boy Border Converter v1.4<br/>
 	made with <span class="love" title="Super love">Super <img src="assets/octicon_heart_color.svg" alt="love" class="octicon" /></span> by <a href="https://www.marcrobledo.com" target="_blank">Marc Robledo</a>
 	<img src="assets/octicon_github.svg" alt="GitHub logo" class="octicon" /> <a href="https://github.com/marcrobledo/super-game-boy-border-converter/"  target="_blank">See sourcecode in GitHub</a>
 </footer>

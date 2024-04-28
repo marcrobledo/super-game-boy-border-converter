@@ -5,63 +5,77 @@ import { PaletteSNES, ColorRGB15, Tile4BPP, Map } from './snes.js'
 /* app loading */
 $(document).ready((evt) => {
 	/* UI events */
-	$('#img-source').on('load', function(evt) {
-		var valid=(this.width===256 && this.height===224);
+	$('#img-source').on('load', function (evt) {
+		var valid = (this.width === 256 && this.height === 224);
 		$('#btn-quantize').prop('disabled', !valid);
-		if(valid)
+		if (valid)
 			UI.notifications.empty()
 		else
 			UI.notifications.error('Invalid image dimensions (must be 256x224)');
 
 
-		var canvas=document.createElement('canvas');
-		var ctx=canvas.getContext('2d');
+		var canvas = document.createElement('canvas');
+		var ctx = canvas.getContext('2d');
 		ctx.drawImage(this, 0, 0);
-		var pixels=[
+		var pixels = [
 			ctx.getImageData(80, 80, 1, 1),
 			ctx.getImageData(176, 80, 1, 1),
 			ctx.getImageData(80, 134, 1, 1),
 			ctx.getImageData(176, 134, 1, 1)
 		]
-		var foundColor=true;
-		for(var i=1; i<4 && foundColor; i++){
-			if(
-				pixels[0].data[0]!==pixels[i].data[0] ||
-				pixels[0].data[1]!==pixels[i].data[1] ||
-				pixels[0].data[2]!==pixels[i].data[2] ||
-				pixels[0].data[3]!==pixels[i].data[3] ||
-				pixels[i].data[4]<255
-			){
-				foundColor=false;
+		var foundColor = true;
+		for (var i = 1; i < 4 && foundColor; i++) {
+			if (
+				pixels[0].data[0] !== pixels[i].data[0] ||
+				pixels[0].data[1] !== pixels[i].data[1] ||
+				pixels[0].data[2] !== pixels[i].data[2] ||
+				pixels[0].data[3] !== pixels[i].data[3] ||
+				pixels[i].data[4] < 255
+			) {
+				foundColor = false;
 			}
 		}
-		
-		if(foundColor){
-			$('#input-color').val('#'+[pixels[0].data[0], pixels[0].data[1], pixels[0].data[2]].map(c => c.toString(16).padStart(2, '0')).join(''));
+
+		if (foundColor) {
+			$('#input-color').val('#' + [pixels[0].data[0], pixels[0].data[1], pixels[0].data[2]].map(c => c.toString(16).padStart(2, '0')).join(''));
 		}
+
+		tryWorkerLossless = true;
 	});
-	$('#img-source').on('error', function(evt) {
+	$('#img-source').on('error', function (evt) {
 		UI.notifications.error('Invalid image file');
 	});
-	$('#input-file').on('change', function(evt) {
-		if(!this.files || !this.files.length)
+	$('#input-file').on('change', function (evt) {
+		if (!this.files || !this.files.length)
 			UI.notifications.error('Invalid file');
 
 		if (this.files.length > 0) {
-			document.getElementById('img-source').src=URL.createObjectURL(this.files[0]);
+			var tempImg = new Image();
+			tempImg.addEventListener('load', function () {
+				if (tempImg.width === 256 && tempImg.height === 224) {
+					predefinedPalettesImageData = null;
+					$('#img-source').attr('src', tempImg.src);
+				} else if (tempImg.width === 256 && tempImg.height === 232) { /* embedded palettes */
+					predefinedPalettesImageData = extractEmbededPalettesImageData(tempImg);
+					$('#img-source').attr('src', removeEmbededPalettes(tempImg));
+				} else {
+					UI.notifications.error('Invalid image dimensions (must be 256x224)');
+				}
+			});
+			tempImg.src = URL.createObjectURL(this.files[0]);
 		}
 	});
 	$('#btn-import').on('click', (evt) => {
 		$('#input-file').trigger('click');
 	});
-	$('#btn-quantize').on('click', function(){
+	$('#btn-quantize').on('click', function () {
 		$('main button').prop('disabled', true);
 
 
 		UI.notifications.empty();
 
-		try{
-			const props={
+		try {
+			const props = {
 				fractionOfPixels: parseFloat(document.getElementById('fraction-pixels').value),
 				colorZero: [255, 0, 255],
 				dithering: DITHER_VALUES[parseInt(document.getElementById('select-dither').value)],
@@ -69,14 +83,14 @@ $(document).ready((evt) => {
 				ditheringMethod: DITHER_PATTERN_VALUES[parseInt(document.getElementById('select-dither-method').value)]
 			};
 
-			if(/^#[0-9a-f]{6}$/i.test(document.getElementById('input-color').value)){
+			if (/^#[0-9a-f]{6}$/i.test(document.getElementById('input-color').value)) {
 				const colorStr = document.getElementById('input-color').value;
 				props.colorZero = [
 					parseInt(colorStr.slice(1, 3), 16),
 					parseInt(colorStr.slice(3, 5), 16),
 					parseInt(colorStr.slice(5, 7), 16),
 				];
-			}else{
+			} else {
 				//throw new Error('Invalid color value');
 			}
 
@@ -86,11 +100,49 @@ $(document).ready((evt) => {
 				document.getElementById('input-dithering-weight').value = props.ditheringWeight.toString();
 			}
 
-			quantizeSNESMap(document.getElementById('img-source'), props);
-		}catch(err){
+			$('#app').show();
+			$('#intro').hide();
+			document.getElementById('progress-bar').value = 0;
+
+			const sourceImage = document.getElementById('img-source');
+			const canvas = document.createElement('canvas');
+			canvas.width = sourceImage.width;
+			canvas.height = sourceImage.height;
+			const ctx = canvas.getContext('2d');
+			ctx.drawImage(sourceImage, 0, 0);
+			const imageData = ctx.getImageData(0, 0, sourceImage.width, sourceImage.height);
+
+			$('#lossless-message').hide();
+			if (tryWorkerLossless)
+				quantizeSNESMapLossless(imageData, props);
+			quantizeSNESMapLossy(imageData, props);
+		} catch (err) {
 			UI.notifications.error(err.message);
 		}
 
+	});
+
+	$('#canvas-map').on('click', function () {
+		if (this.style.width !== '512px') {
+			this.style.width = '512px';
+			$(this).addClass('zoom-out');
+			$(this).removeClass('zoom-in');
+		} else {
+			this.style.width = '256px';
+			$(this).addClass('zoom-in');
+			$(this).removeClass('zoom-out');
+		}
+	});
+	$('#canvas-tiles').on('click', function () {
+		if (this.style.width !== '256px') {
+			this.style.width = '256px';
+			$(this).addClass('zoom-out');
+			$(this).removeClass('zoom-in');
+		} else {
+			this.style.width = '128px';
+			$(this).addClass('zoom-in');
+			$(this).removeClass('zoom-out');
+		}
 	});
 
 	$('#btn-export-map').on('click', exportMap);
@@ -102,39 +154,111 @@ $(document).ready((evt) => {
 
 
 	UI.toggleDitheringOptions();
+	document.getElementById('img-source').src = 'assets/example.png'
 });
 
 
 
-const UI={
-	notifications:{
-		empty:function(){
+const UI = {
+	savedMap: true,
+	savedTiles: true,
+	savedPalettes: true,
+	setWarnOnLeave: function () {
+		if (this.savedMap && this.savedTiles && this.savedPalettes) {
+			window.onbeforeunload = null;
+		} else {
+			window.onbeforeunload = function () {
+				return true;
+			};
+		}
+	},
+	notifications: {
+		empty: function () {
 			$('#alerts').empty();
 		},
-		add:function(message, className){
+		add: function (message, className) {
 			$('#alerts').append(
 				$('<div></<div>')
-					.addClass('alert'+(className? ' alert-'+className : ''))
+					.addClass('alert' + (className ? ' alert-' + className : ''))
 					.html(message)
 			)
 		},
-		error:function(message){
+		error: function (message) {
 			this.empty();
 			this.add(message, 'danger');
 		},
-		warning:function(message){
+		warning: function (message) {
 			this.empty();
 			this.add(message, 'warning');
 		}
 	},
-	
-	toggleDitheringOptions:function(){
-		if(parseInt($('#select-dither').val())){
+
+	toggleDitheringOptions: function () {
+		if (parseInt($('#select-dither').val())) {
 			$('#container-dithering-options').show();
-		}else{
+		} else {
 			$('#container-dithering-options').hide();
 		}
 	}
+}
+let predefinedPalettesImageData;
+function generateLosslessImageData(image) {
+	const canvas = document.createElement('canvas');
+	const ctx = canvas.getContext('2d');
+	canvas.width = 256;
+	canvas.height = 224;
+	ctx.drawImage(image, 0, 0);
+
+	const tempImageData = ctx.getImageData(0, 0, image.width, image.height);
+	for (var i = 0; i < tempImageData.data.length; i += 4) {
+		const r = tempImageData.data[i + 0];
+		const g = tempImageData.data[i + 1];
+		const b = tempImageData.data[i + 2];
+		const rgb15 = new ColorRGB15(r, g, b);
+		tempImageData.data[i + 0] = rgb15.r8;
+		tempImageData.data[i + 1] = rgb15.g8;
+		tempImageData.data[i + 2] = rgb15.b8;
+	}
+	return tempImageData;
+}
+
+function rebuildCanvasPalette(palettes) {
+	const PALETTE_TILE_SIZE = 16;
+	const canvas = document.getElementById('canvas-palettes');
+	canvas.height = palettes.length * PALETTE_TILE_SIZE;
+	const palCtx = canvas.getContext('2d');
+	for (let j = 0; j < palettes.length; j += 1) {
+		for (let i = 0; i < palettes[j].length; i += 1) {
+			let colorString = `rgb(
+				${Math.round(palettes[j][i][0])},
+				${Math.round(palettes[j][i][1])},
+				${Math.round(palettes[j][i][2])})`;
+			palCtx.fillStyle = colorString;
+			palCtx.fillRect(i * PALETTE_TILE_SIZE, j * PALETTE_TILE_SIZE, PALETTE_TILE_SIZE, PALETTE_TILE_SIZE);
+
+		}
+	}
+}
+function rebuildCanvasMap(imageData) {
+	document.getElementById('canvas-map').getContext('2d').putImageData(imageData, 0, 0);
+}
+
+
+function removeEmbededPalettes(image) {
+	const canvas = document.createElement('canvas');
+	const ctx = canvas.getContext('2d');
+	canvas.width = image.width;
+	canvas.height = image.height - 8;
+	ctx.drawImage(image, 0, 8, image.width, image.height - 8, 0, 0, image.width, image.height - 8);
+	return canvas.toDataURL();
+}
+function extractEmbededPalettesImageData(image) {
+	const canvas = document.createElement('canvas');
+	const ctx = canvas.getContext('2d');
+	canvas.width = 8 * 3;
+	canvas.height = 8
+	ctx.drawImage(image, 0, 0);
+	return ctx.getImageData(0, 0, 8 * 3, 8);
 }
 
 
@@ -142,8 +266,65 @@ const UI={
 
 
 
-/* tiledpalettequant web worker by rilden (https://rilden.github.io/tiledpalettequant/) that does the whole magic! */
 
+
+
+
+
+
+/* lossless method: if all tiles have less than 16 colors, it might not need palette lossy quantization */
+let workerLossless = null;
+let tryWorkerLossless = true;
+function quantizeSNESMapLossless(imageData, props) {
+	if (workerLossless)
+		workerLossless.terminate();
+
+	workerLossless = new Worker('./app/lossless.worker.js', { type: 'module' });
+	workerLossless.onmessage = function (event) {
+		const data = event.data;
+		if (data.palettes) {
+			if (workerLossy)
+				workerLossy.terminate();
+
+			console.log('lossless result in ' + data.tries + ' tries, stopping tiledpalettequant worker');
+			document.getElementById('progress-bar').value = 100;
+
+			$('#lossless-message').show();
+			rebuildCanvasMap(generateLosslessImageData(document.getElementById('img-source')));
+			rebuildCanvasPalette(data.palettes.map(palette => palette.map(color => ColorRGB15.toRGB24(color))));
+			secondStep();
+
+		} else {
+			console.log('failed to generate lossless result in ' + data.tries + ' tries');
+			tryWorkerLossless = false;
+		}
+	};
+
+	if (predefinedPalettesImageData) {
+		console.log('predefined palettes found in original image');
+		const canvas = document.createElement('canvas');
+		canvas.width = imageData.width;
+		canvas.height = imageData.height + 8;
+		const ctx = canvas.getContext('2d');
+		ctx.putImageData(predefinedPalettesImageData, 0, 0);
+		ctx.putImageData(imageData, 0, 8);
+		imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+	}
+	/* web worker */
+	workerLossless.postMessage({
+		imageData: imageData,
+		colorZero: props.colorZero,
+		maxTries: 512 /* props.fractionOfPixels===1? 1024 : 512 */
+	});
+};
+
+
+
+
+
+
+
+/* tiledpalettequant web worker by rilden (https://rilden.github.io/tiledpalettequant/) that does the whole magic! */
 const DITHER_VALUES = [Dither.Off, Dither.Fast, Dither.Slow];
 const DITHER_PATTERN_VALUES = [
 	DitherPattern.Diagonal4,
@@ -154,14 +335,14 @@ const DITHER_PATTERN_VALUES = [
 	DitherPattern.Vertical2,
 ];
 
-let worker = null;
-function quantizeSNESMap(sourceImage, props) {
-	if (worker)
-		worker.terminate();
+let workerLossy = null;
+function quantizeSNESMapLossy(imageData, props) {
+	if (workerLossy)
+		workerLossy.terminate();
 
 
-	worker = new Worker('./app/tiledpalettequant/worker.js');
-	worker.onmessage = function (event) {
+	workerLossy = new Worker('./app/tiledpalettequant/worker.js');
+	workerLossy.onmessage = function (event) {
 		const data = event.data;
 		if (data.action === Action.UpdateProgress) {
 			document.getElementById('progress-bar').value = data.progress;
@@ -174,43 +355,15 @@ function quantizeSNESMap(sourceImage, props) {
 			const quantizedImageData = new window.ImageData(imageData.width, imageData.height);
 			for (let i = 0; i < imageData.data.length; i++) {
 				quantizedImageData.data[i] = imageData.data[i];
-			} 
-			const canvas=document.getElementById('canvas-map');
-			canvas.getContext('2d').putImageData(quantizedImageData, 0, 0);
+			}
+			rebuildCanvasMap(quantizedImageData);
 		}
 		else if (data.action === Action.UpdatePalettes) {
-			const palettes = data.palettes;
-			const PALETTE_TILE_SIZE = 16;
-			const canvas=document.getElementById('canvas-palettes');
-			//canvas.width = data.numColors * PALETTE_TILE_SIZE;
-			canvas.height = data.numPalettes * PALETTE_TILE_SIZE;
-			const palCtx = canvas.getContext('2d');
-			for (let j = 0; j < palettes.length; j += 1) {
-				for (let i = 0; i < palettes[j].length; i += 1) {
-					let colorString=`rgb(
-						${Math.round(palettes[j][i][0])},
-						${Math.round(palettes[j][i][1])},
-						${Math.round(palettes[j][i][2])})`;
-					palCtx.fillStyle = colorString;
-					palCtx.fillRect(i * PALETTE_TILE_SIZE, j * PALETTE_TILE_SIZE, PALETTE_TILE_SIZE, PALETTE_TILE_SIZE);
-					
-				}
-			}
+			rebuildCanvasPalette(data.palettes);
 		}
 	};
-	
-	const canvas = document.createElement('canvas');
-	canvas.width = sourceImage.width;
-	canvas.height = sourceImage.height;
-	const ctx = canvas.getContext('2d');
-	ctx.drawImage(sourceImage, 0, 0);
-	const imageData=ctx.getImageData(0, 0, sourceImage.width, sourceImage.height);
 
-
-	$('#app').show();
-	$('#intro').hide();
-
-	worker.postMessage({
+	workerLossy.postMessage({
 		action: Action.StartQuantization,
 		imageData: imageData,
 		quantizationOptions: {
@@ -237,165 +390,187 @@ function quantizeSNESMap(sourceImage, props) {
 /* prepare SNES data from quantized images */
 var currentPalettes, currentTiles, currentMap;
 
-function findInTileset(tileset, tile){
-	for(var i=0; i<tileset.length; i++){
-		if(tileset[i]){
-			var tileMatch=tileset[i].equals(tile);
-			if(tileMatch)
+
+
+function findInTileset(tileset, tile) {
+	for (var i = 0; i < tileset.length; i++) {
+		if (tileset[i]) {
+			var tileMatch = tileset[i].equals(tile);
+			if (tileMatch)
 				return tileMatch;
 		}
 	}
 	return null;
 }
 
-function secondStep(){
-	var currentCanvas=document.getElementById('canvas-palettes');
-	var currentCtx=currentCanvas.getContext('2d');
+function secondStep() {
+	var currentCanvas = document.getElementById('canvas-palettes');
+	var currentCtx = currentCanvas.getContext('2d');
 
+	const PALETTE_TILE_SIZE = 16
 	/* parse palettes */
 	const MAX_PALETTES = 3;
-	currentPalettes=new Array(MAX_PALETTES);
-	for(var y=0; y<MAX_PALETTES; y++){
-		currentPalettes[y]=new PaletteSNES();
-		for(var x=0; x<16; x++){
-			var imageData=currentCtx.getImageData(x*16, y*16, 1, 1).data;
-			currentPalettes[y].colors[x]=new ColorRGB15(imageData[0], imageData[1], imageData[2]);
+	currentPalettes = new Array(MAX_PALETTES);
+	for (var y = 0; y < MAX_PALETTES; y++) {
+		currentPalettes[y] = new PaletteSNES();
+		for (var x = 0; x < 16; x++) {
+			var imageData = currentCtx.getImageData(x * PALETTE_TILE_SIZE, y * PALETTE_TILE_SIZE, 1, 1).data;
+			currentPalettes[y].colors[x] = new ColorRGB15(imageData[0], imageData[1], imageData[2]);
 		}
 	}
 
 	/* build blank tile */
 	/* first tile must be a blank tile, see https://github.com/marcrobledo/super-game-boy-border-converter/issues/2 */
-	const blankTile=new Tile4BPP();
-	blankTile.palette=currentPalettes[0];
+	const blankTile = new Tile4BPP();
+	blankTile.palette = currentPalettes[0];
 
 	/* parse tiles, build map */
-	currentCanvas=document.getElementById('canvas-map');
-	currentCtx=currentCanvas.getContext('2d');
-	currentTiles=new Array(blankTile);
-	currentMap=new Map(32, 28);
-	var nDuplicates=0;
-	var maxPaletteIndex=0;
-	for(var y=0; y<28; y++){
-		for(var x=0; x<32; x++){
-			var imageData=currentCtx.getImageData(x*8, y*8, 8, 8).data;
-			var tile=Tile4BPP.fromImageData(imageData, currentPalettes);
+	currentCanvas = document.getElementById('canvas-map');
+	currentCtx = currentCanvas.getContext('2d');
+	currentTiles = new Array(blankTile);
+	currentMap = new Map(32, 28);
+	var nDuplicates = 0;
+	var maxPaletteIndex = 0;
+	for (var y = 0; y < 28; y++) {
+		for (var x = 0; x < 32; x++) {
+			var imageData = currentCtx.getImageData(x * 8, y * 8, 8, 8).data;
+			var tile = Tile4BPP.fromImageData(imageData, currentPalettes);
 
-			var tileMatch=findInTileset(currentTiles, tile);
+			var tileMatch = findInTileset(currentTiles, tile);
 			var attributes;
-			if(tileMatch){
-				currentMap.tiles[y*32 + x]=tileMatch.tile;
-				attributes={
-					paletteIndex:currentPalettes.indexOf(tile.palette),
-					flipX:tileMatch.flipValue & Tile4BPP.FLIP_X,
-					flipY:tileMatch.flipValue & Tile4BPP.FLIP_Y
+			if (tileMatch) {
+				currentMap.tiles[y * 32 + x] = tileMatch.tile;
+				attributes = {
+					paletteIndex: currentPalettes.indexOf(tile.palette),
+					flipX: tileMatch.flipValue & Tile4BPP.FLIP_X,
+					flipY: tileMatch.flipValue & Tile4BPP.FLIP_Y
 				};
 				nDuplicates++;
-			}else{
+			} else {
 				currentTiles.push(tile);
 
-				currentMap.tiles[y*32 + x]=tile;
-				attributes={
-					paletteIndex:currentPalettes.indexOf(tile.palette),
-					flipX:false,
-					flipY:false
+				currentMap.tiles[y * 32 + x] = tile;
+				attributes = {
+					paletteIndex: currentPalettes.indexOf(tile.palette),
+					flipX: false,
+					flipY: false
 				};
 			}
-			if(attributes.paletteIndex>maxPaletteIndex)
-				maxPaletteIndex=attributes.paletteIndex;
+			if (attributes.paletteIndex > maxPaletteIndex)
+				maxPaletteIndex = attributes.paletteIndex;
 
-			currentMap.attributes[y*32 + x]=
-				((attributes.flipY? 1:0) << 7) |
-				((attributes.flipX? 1:0) << 6) |
+			currentMap.attributes[y * 32 + x] =
+				((attributes.flipY ? 1 : 0) << 7) |
+				((attributes.flipX ? 1 : 0) << 6) |
 				((attributes.paletteIndex + 4) << 2) |
 				0x00;
 		}
 	}
 
-	const nPalettes=maxPaletteIndex + 1;
-	if(nPalettes<3){
-		while(currentPalettes.length > nPalettes){
+	const nPalettes = maxPaletteIndex + 1;
+	if (nPalettes < 3) {
+		while (currentPalettes.length > nPalettes) {
 			currentPalettes.pop();
 		}
-		currentCanvas=document.getElementById('canvas-palettes');
-		currentCtx=currentCanvas.getContext('2d');
-		var newHeight=(currentCanvas.height / 3) * nPalettes;
-		var imageData=currentCtx.getImageData(0, 0, currentCanvas.width, newHeight);
-		currentCanvas.height=newHeight;
+		currentCanvas = document.getElementById('canvas-palettes');
+		currentCtx = currentCanvas.getContext('2d');
+		var newHeight = PALETTE_TILE_SIZE * nPalettes;
+		var imageData = currentCtx.getImageData(0, 0, currentCanvas.width, newHeight);
+		currentCanvas.height = newHeight;
 		currentCtx.putImageData(imageData, 0, 0);
 	}
-	currentCanvas=document.getElementById('canvas-tiles');
-	currentCtx=currentCanvas.getContext('2d');
+	currentCanvas = document.getElementById('canvas-tiles');
+	currentCtx = currentCanvas.getContext('2d');
 	//currentCanvas.width=128;
-	currentCanvas.height=Math.ceil(currentTiles.length/16) * 8;
-	for(var i=0; i<currentTiles.length; i++){
-		currentCtx.putImageData(currentTiles[i].toImageData(currentTiles[i].palette), (i%16) * 8, (Math.floor(i/16)) * 8);
+	currentCanvas.height = Math.ceil(currentTiles.length / 16) * 8;
+	for (var i = 0; i < currentTiles.length; i++) {
+		currentCtx.putImageData(currentTiles[i].toImageData(currentTiles[i].palette), (i % 16) * 8, (Math.floor(i / 16)) * 8);
 	}
-	if(currentTiles.length>256){
+
+
+
+	if (currentTiles.length <= 256) {
+		$('main button').prop('disabled', false);
+		UI.savedMap = false;
+		UI.savedTiles = false;
+		UI.savedPalettes = false;
+		UI.setWarnOnLeave();
+	} else {
+		tryWorkerLossless = false;
 		UI.notifications.error('256 tiles SNES limit exceeded. Edit manually your image and try to reduce the amount of unique 8x8 tiles.');
 	}
-	
-	$('main button').prop('disabled', false);
+
 }
 
 
 
-function saveUint8Array(u8array, name){
-	var blob=new Blob([u8array.buffer], {type: 'application/octet-stream'});
+function saveUint8Array(u8array, name) {
+	var blob = new Blob([u8array.buffer], { type: 'application/octet-stream' });
 	saveAs(blob, name);
 }
-function buildDataMap(){
-	var u8array=new Uint8Array(currentMap.tiles.length * 2);
-	for(var i=0; i<currentMap.tiles.length; i++){
-		u8array[(i * 2) + 0]=currentTiles.indexOf(currentMap.tiles[i]);
-		u8array[(i * 2) + 1]=currentMap.attributes[i];
+function buildDataMap() {
+	var u8array = new Uint8Array(currentMap.tiles.length * 2);
+	for (var i = 0; i < currentMap.tiles.length; i++) {
+		u8array[(i * 2) + 0] = currentTiles.indexOf(currentMap.tiles[i]);
+		u8array[(i * 2) + 1] = currentMap.attributes[i];
 	}
 	return u8array;
 }
-function exportMap(){
+function exportMap() {
 	saveUint8Array(buildDataMap(), 'sgb_border_map.bin');
+	UI.savedMap = true;
+	UI.setWarnOnLeave();
 }
-function buildDataTiles(){
-	var u8array=new Uint8Array(currentTiles.length * 32);
-	for(var i=0; i<currentTiles.length; i++){
-		for(var j=0; j<32; j++){
-			u8array[(i * 32) + j]=currentTiles[i].data[j];
+function buildDataTiles() {
+	var u8array = new Uint8Array(currentTiles.length * 32);
+	for (var i = 0; i < currentTiles.length; i++) {
+		for (var j = 0; j < 32; j++) {
+			u8array[(i * 32) + j] = currentTiles[i].data[j];
 		}
 	}
 	return u8array;
 }
-function exportTiles(){
+function exportTiles() {
 	saveUint8Array(buildDataTiles(), 'sgb_border_tiles.bin');
+	UI.savedTiles = true;
+	UI.setWarnOnLeave();
 }
-function buildDataPalettes(){
-	var u8array=new Uint8Array(currentPalettes.length * 16*2);
-	for(var i=0; i<currentPalettes.length; i++){
-		for(var j=0; j<16; j++){
-			u8array[(i * 32) + (j* 2) + 0]=currentPalettes[i].colors[j].data & 0xff;
-			u8array[(i * 32) + (j* 2) + 1]=currentPalettes[i].colors[j].data >> 8;
+function buildDataPalettes() {
+	var u8array = new Uint8Array(currentPalettes.length * 16 * 2);
+	for (var i = 0; i < currentPalettes.length; i++) {
+		for (var j = 0; j < 16; j++) {
+			u8array[(i * 32) + (j * 2) + 0] = currentPalettes[i].colors[j].data & 0xff;
+			u8array[(i * 32) + (j * 2) + 1] = currentPalettes[i].colors[j].data >> 8;
 		}
 	}
 	return u8array;
 }
-function exportPalettes(){
+function exportPalettes() {
 	saveUint8Array(buildDataPalettes(), 'sgb_border_palettes.bin');
+	UI.savedPalettes = true;
+	UI.setWarnOnLeave();
 }
-function exportSGB(){
-	var u8array=new Uint8Array((256 * 32) + (32 * 28 * 2) + (16 * 2 * 4));
+function exportSGB() {
+	var u8array = new Uint8Array((256 * 32) + (32 * 28 * 2) + (16 * 2 * 4));
 
-	var dataTiles=buildDataTiles();
-	for(var i=0; i<dataTiles.length; i++){
+	var dataTiles = buildDataTiles();
+	for (var i = 0; i < dataTiles.length; i++) {
 		u8array[0x0000 + i] = dataTiles[i];
 	}
 
-	var dataMap=buildDataMap();
-	for(var i=0; i<dataMap.length; i++){
+	var dataMap = buildDataMap();
+	for (var i = 0; i < dataMap.length; i++) {
 		u8array[0x2000 + i] = dataMap[i];
 	}
 
-	var dataPalettes=buildDataPalettes();
-	for(var i=0; i<dataPalettes.length; i++){
+	var dataPalettes = buildDataPalettes();
+	for (var i = 0; i < dataPalettes.length; i++) {
 		u8array[0x2700 + i] = dataPalettes[i];
 	}
 
 	saveUint8Array(u8array, 'my_border.sgb');
+	UI.savedMap = true;
+	UI.savedTiles = true;
+	UI.savedPalettes = true;
+	UI.setWarnOnLeave();
 }

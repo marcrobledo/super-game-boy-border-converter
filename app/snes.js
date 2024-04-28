@@ -47,7 +47,13 @@ ColorRGB15.RESCALE_24TO15BIT=8.22580645161291;
 ColorRGB15.BIT5_MASK=0x1f;
 
 ColorRGB15.to5bit=function(color){return Math.round(color/ColorRGB15.RESCALE_24TO15BIT) & ColorRGB15.BIT5_MASK}
-
+ColorRGB15.to8bit=function(color){return Math.round(color*ColorRGB15.RESCALE_24TO15BIT)}
+ColorRGB15.toRGB24=function(rgb15){
+	const r8=ColorRGB15.to8bit(rgb15 & ColorRGB15.BIT5_MASK);
+	const g8=ColorRGB15.to8bit((rgb15 >>> 5) & ColorRGB15.BIT5_MASK);
+	const b8=ColorRGB15.to8bit((rgb15 >>> 10) & ColorRGB15.BIT5_MASK);
+	return [r8, g8, b8];
+}
 
 
 
