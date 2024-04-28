@@ -497,7 +497,7 @@ function secondStep() {
 		UI.setWarnOnLeave();
 	} else {
 		tryWorkerLossless = false;
-		UI.notifications.error('256 tiles SNES limit exceeded. Edit manually your image and try to reduce the amount of unique 8x8 tiles.');
+		UI.notifications.error('256 tiles SNES limit exceeded. Edit manually your image and try to reduce the amount of unique 8x8 tiles. <a href="https://github.com/marcrobledo/super-game-boy-border-converter?tab=readme-ov-file#improving-conversion-results" target="_blank">More information</a>');
 	}
 
 }

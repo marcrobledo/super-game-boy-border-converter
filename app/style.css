@@ -207,6 +207,10 @@ progress::-moz-progress-bar{
 	background-color:#ff3c00;
 	color:white;
 }
+.alert-danger a{
+	font-weight:bold;
+	color:white;
+}
 
 
 
