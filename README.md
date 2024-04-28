@@ -31,7 +31,8 @@ This process is a little laborious. I recommend it only if you really understand
 
 Take a look at this image:
 
-![SGB converter advanced example](https://github.com/marcrobledo/super-game-boy-border-converter/blob/main/assets/example_advanced.png?raw=true)
+![SGB converter advanced example](https://github.com/marcrobledo/super-game-boy-border-converter/blob/main/assets/example_advanced.png?raw=true) 
+![SGB converter advanced example explanation](https://github.com/marcrobledo/super-game-boy-border-converter/blob/main/assets/example_advanced_explanation.png?raw=true)
 
 - it's a 256&times;**232** image
 - first row has three extra tiles
