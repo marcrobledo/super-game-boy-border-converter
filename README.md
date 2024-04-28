@@ -35,7 +35,7 @@ Take a look at this image:
 
 - it's a 256&times;**232** image
 - first row has three extra tiles
-- each tile includes the 16 colors that make up each palette
+   - each extra tile includes the 16 colors that make up each palette
 - the rest of the image is the border itself
 
 By attaching an image like this to the SGB Converter, you are providing information on how exactly the three palettes will be, so the Converter does not need to run the random algorithm. If all your border tiles match any of those three palettes, your border won't lose any color information.
