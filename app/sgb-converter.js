@@ -1,3 +1,37 @@
+/*
+* Super Game Boy border converter
+* Online PNG to SGB raw data border converter
+* (last update: 2025-03-29)
+* By Marc Robledo https://www.marcrobledo.com
+*
+* License:
+*
+* MIT License
+* 
+* Copyright (c) 2024-2025 Marc Robledo
+* This project uses code from https://github.com/rilden/tiledpalettequant by rilden
+* which is also licensed under the MIT License.
+* 
+* Permission is hereby granted, free of charge, to any person obtaining a copy
+* of this software and associated documentation files (the "Software"), to deal
+* in the Software without restriction, including without limitation the rights
+* to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+* copies of the Software, and to permit persons to whom the Software is
+* furnished to do so, subject to the following conditions:
+* 
+* The above copyright notice and this permission notice shall be included in all
+* copies or substantial portions of the Software.
+* 
+* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+* IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+* LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+* OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+* SOFTWARE.
+*/
+
+
 import { Action, ColorZeroBehaviour, Dither, DitherPattern } from './tiledpalettequant/enums.js';
 import { PaletteSNES, ColorRGB15, Tile4BPP, Map } from './snes.js'
 
@@ -145,6 +179,77 @@ $(document).ready((evt) => {
 		}
 	});
 
+	/* highlight mouse over tile */
+	$('#canvas-map').on('mousemove', function (evt) {
+		const tileSize = this.style.width !== '512px' ? 8 : 16;
+		const rect = this.getBoundingClientRect();
+		const x = Math.floor((evt.clientX - rect.left) / tileSize);
+		const y = Math.floor((evt.clientY - rect.top) / tileSize);
+		const tilePos = y * 32 + x;
+
+		_repaintCanvases();
+		const tile = currentMap.tiles[tilePos];
+		const paletteIndex = (currentMap.attributes[tilePos] >> 2) & 0x03;
+		_highlightTilesInMap(tile);
+		_highlightTileInTileset(tile);
+		_highlightPalettes([paletteIndex]);
+	});
+	$('#canvas-tiles').on('mousemove', function (evt) {
+		const tileSize = this.style.width !== '256px' ? 8 : 16;
+		const rect = this.getBoundingClientRect();
+		const x = Math.floor((evt.clientX - rect.left) / tileSize);
+		const y = Math.floor((evt.clientY - rect.top) / tileSize);
+		const tileIndex = y * (this.width / 8) + x;
+
+		_repaintCanvases();
+		const tile = currentTiles[tileIndex];
+		const paletteIndexes = currentMap.tiles.reduce(function (paletteIndexes, tileInMap, index) {
+			if (tileInMap === tile) {
+				const paletteIndex = (currentMap.attributes[index] >> 2) & 0x03;
+				if (!paletteIndexes.includes(paletteIndex)) {
+					paletteIndexes.push(paletteIndex);
+				}
+			}
+			return paletteIndexes;
+		}, []);
+		_highlightTilesInMap(tile);
+		_highlightTile(this, x, y);
+		_highlightPalettes(paletteIndexes);
+	});
+	$('#canvas-palettes').on('mousemove', function (evt) {
+		const rect = this.getBoundingClientRect();
+		const paletteIndex = Math.floor((evt.clientY - rect.top) / 16);
+
+		_repaintCanvases();
+		const tilesInfo = currentMap.tiles.reduce(function (acc, tileInMap, index) {
+			const paletteIndexInMap = (currentMap.attributes[index] >> 2) & 0x03;
+			if (paletteIndexInMap === paletteIndex) {
+				acc.inMap.push({ x: index % 32, y: Math.floor(index / 32) });
+				const tileIndex = currentTiles.indexOf(tileInMap);
+				if (tileIndex !== -1 && !acc.inTileset.includes(tileInMap)) {
+					acc.inTileset.push(tileInMap);
+				}
+			}
+			return acc;
+		}, { inMap: [], inTileset: [] });
+
+		tilesInfo.inMap.forEach(function (tileInfo) {
+			_highlightTile(document.getElementById('canvas-map'), tileInfo.x, tileInfo.y);
+		});
+		tilesInfo.inTileset.forEach(function (tile) {
+			_highlightTileInTileset(tile);
+		});
+		_highlightPalettes([paletteIndex]);
+	});
+	$('#canvas-map').on('mouseout', _repaintCanvases);
+	$('#canvas-tiles').on('mouseout', _repaintCanvases);
+	$('#canvas-palettes').on('mouseout', _repaintCanvases);
+
+
+
+
+
+
 	$('#btn-export-map').on('click', exportMap);
 	$('#btn-export-tiles').on('click', exportTiles);
 	$('#btn-export-palettes').on('click', exportPalettes);
@@ -260,6 +365,71 @@ function extractEmbededPalettesImageData(image) {
 	ctx.drawImage(image, 0, 0);
 	return ctx.getImageData(0, 0, 8 * 3, 8);
 }
+
+
+
+
+
+
+
+
+
+
+
+
+/* highlight tiles in canvases */
+const _repaintCanvases = function () {
+	document.getElementById('canvas-map').getContext('2d').putImageData(document.getElementById('canvas-map').imageDataBackup, 0, 0);
+	document.getElementById('canvas-tiles').getContext('2d').putImageData(document.getElementById('canvas-tiles').imageDataBackup, 0, 0);
+	document.getElementById('canvas-palettes').getContext('2d').putImageData(document.getElementById('canvas-palettes').imageDataBackup, 0, 0);
+}
+const _highlightTile = function (canvas, x, y) {
+	const ctx = canvas.getContext('2d');
+	ctx.strokeStyle = 'red';
+	ctx.strokeRect(x * 8, y * 8, 8, 8);
+};
+const _highlightTilesInMap = function (tile) {
+	const tileIndexesInMap = currentMap.tiles.reduce(function (tileIndexes, tileInMap, index) {
+		if (tileInMap === tile) {
+			tileIndexes.push(index);
+		}
+		return tileIndexes;
+	}, []);
+	if (tileIndexesInMap.length) {
+		tileIndexesInMap.forEach(function (tileIndex) {
+			_highlightTile(document.getElementById('canvas-map'), tileIndex % 32, Math.floor(tileIndex / 32));
+		});
+	}
+};
+const _highlightTileInTileset = function (tile) {
+	const tileIndex = currentTiles.indexOf(tile);
+	if (tileIndex !== -1) {
+		_highlightTile(document.getElementById('canvas-tiles'), tileIndex % 16, Math.floor(tileIndex / 16));
+	}
+};
+const _highlightPalettes = function (paletteIndexes) {
+	const ctx = document.getElementById('canvas-palettes').getContext('2d');
+	ctx.strokeStyle = 'red';
+	paletteIndexes.forEach(function (paletteIndex) {
+		ctx.strokeRect(0, paletteIndex * 16, 256, 16);
+	});
+};
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -500,6 +670,11 @@ function secondStep() {
 		UI.notifications.error('256 tiles SNES limit exceeded. Edit manually your image and try to reduce the amount of unique 8x8 tiles. <a href="https://github.com/marcrobledo/super-game-boy-border-converter?tab=readme-ov-file#improving-conversion-results" target="_blank">More information</a>');
 	}
 
+	/* save image data for repaint canvases */
+	['map', 'tiles', 'palettes'].forEach(function (canvasName) {
+		const canvas = document.getElementById('canvas-' + canvasName);
+		canvas.imageDataBackup = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height);
+	});
 }
 
 
