@@ -1,7 +1,7 @@
 /*
 * Super Game Boy border converter
 * Online PNG to SGB raw data border converter
-* (last update: 2025-03-29)
+* (last update: 2026-01-09)
 * By Marc Robledo https://www.marcrobledo.com
 *
 * License:
@@ -171,6 +171,12 @@ $(document).ready((evt) => {
 		_highlightTilesInMap(tile);
 		_highlightTileInTileset(tile);
 		_highlightPalettes([paletteIndex]);
+
+		const currentInspection = 'map-' + x + '-' + y;
+		const changeDetected = latestInspection !== currentInspection;
+		latestInspection = currentInspection;
+		if (isInspectorOpen() && changeDetected)
+			refreshInspector();
 	});
 	$('#canvas-tiles').on('mousemove', function (evt) {
 		const tileSize = this.style.width !== '256px' ? 8 : 16;
@@ -193,6 +199,12 @@ $(document).ready((evt) => {
 		_highlightTilesInMap(tile);
 		_highlightTile(this, x, y);
 		_highlightPalettes(paletteIndexes);
+
+		const currentInspection = 'tile-' + tileIndex;
+		const changeDetected = latestInspection !== currentInspection;
+		latestInspection = currentInspection;
+		if (isInspectorOpen() && changeDetected)
+			refreshInspector();
 	});
 	$('#canvas-palettes').on('mousemove', function (evt) {
 		const rect = this.getBoundingClientRect();
@@ -218,39 +230,23 @@ $(document).ready((evt) => {
 			_highlightTileInTileset(tile);
 		});
 		_highlightPalettes([paletteIndex]);
+
+		const currentInspection = 'palette-' + paletteIndex;
+		const changeDetected = latestInspection !== currentInspection;
+		latestInspection = currentInspection;
+		if (isInspectorOpen() && changeDetected)
+			refreshInspector();
 	});
 	$('#canvas-map').on('mouseout', _repaintCanvases);
 	$('#canvas-tiles').on('mouseout', _repaintCanvases);
 	$('#canvas-palettes').on('mouseout', _repaintCanvases);
 
-	$('#canvas-map').on('click', function (evt) {
+	$('#canvas-map, #canvas-tiles, #canvas-palettes').on('click', function (evt) {
 		evt.stopPropagation();
-		const tileSize = this.style.width !== '512px' ? 8 : 16;
-		const rect = this.getBoundingClientRect();
-		const x = Math.floor((evt.clientX - rect.left) / tileSize);
-		const y = Math.floor((evt.clientY - rect.top) / tileSize);
-		openInspector('map', x, y);
-	});
-	$('#canvas-tiles').on('click', function (evt) {
-		evt.stopPropagation();
-		const tileSize = this.style.width !== '256px' ? 8 : 16;
-		const rect = this.getBoundingClientRect();
-		const x = Math.floor((evt.clientX - rect.left) / tileSize);
-		const y = Math.floor((evt.clientY - rect.top) / tileSize);
-		const tileIndex = y * (this.width / 8) + x;
-		openInspector('tile', tileIndex);
-	});
-	$('#canvas-palettes').on('click', function (evt) {
-		evt.stopPropagation();
-		const rect = this.getBoundingClientRect();
-		const paletteIndex = Math.floor((evt.clientY - rect.top) / 16);
-		openInspector('palette', paletteIndex);
-	});
-	$('#inspector').on('click', function (evt) {
-		evt.stopPropagation();
-	});
-	$(document.body).on('click', function (evt) {
-		closeInspector();
+		if (isInspectorOpen())
+			closeInspector();
+		else
+			openInspector();
 	});
 
 
@@ -761,40 +757,114 @@ function exportSGB() {
 
 
 /* inspector */
-function openInspector(mode, param1, param2){
+let latestInspection = null;
+function isInspectorOpen() {
+	return document.getElementById('inspector').style.display === 'block';
+}
+function openInspector() {
 	$('#canvas-map').css('width', '512px');
 	$('#canvas-tiles').css('width', '256px');
 	$('#inspector').show();
-
+	refreshInspector();
+}
+function refreshInspector() {
 	$('#inspector-content').empty();
-	if(mode==='map'){
+	const currentInspectionSplit = latestInspection.split('-');
+	const mode = currentInspectionSplit[0];
+	const param1 = parseInt(currentInspectionSplit[1]);
+	const param2 = parseInt(currentInspectionSplit[2]);
+	if (mode === 'map') {
 		const x = param1;
 		const y = param2;
-		const tilePos = y * 32 + x;
-		const tile = currentMap.tiles[tilePos];
-		const tileIndex= currentTiles.indexOf(tile);
-		const paletteIndex = (currentMap.attributes[tilePos] >> 2) & 0x03;
-		const flipX = (currentMap.attributes[tilePos] & 0x40) !== 0;
-		const flipY = (currentMap.attributes[tilePos] & 0x80) !== 0;
-		let flipText='-';
-		if(flipX && flipY)
-			flipText='XY';
-		else if(flipX)
-			flipText='X';
-		else if(flipY)
-			flipText='Y';
-		$('#inspector-content').text(`X: ${x}, Y: ${y}, tile: ${tileIndex}, palette: ${paletteIndex}, Flip: ${flipText}`);
-	}else if(mode==='tile'){
+
+
+		const tileGrid3x3 = document.createElement('div');
+		tileGrid3x3.className = 'inspector-tile-grid';
+		for (let ty = 0; ty < 3; ty++) {
+			for (let tx = 0; tx < 3; tx++) {
+				const tileInfo = currentMap.getAttributes(x + (tx - 1), y + (ty - 1), currentTiles);
+				if (tileInfo) {
+					const canvas = document.createElement('canvas');
+					canvas.width = 8;
+					canvas.height = 8;
+					canvas.getContext('2d').putImageData(tileInfo.tile.toImageData(currentPalettes[tileInfo.paletteIndex], tileInfo.flipX, tileInfo.flipY), 0, 0);
+					tileGrid3x3.appendChild(canvas);
+				} else {
+					tileGrid3x3.appendChild(document.createElement('div'));
+				}
+			}
+		}
+		$('#inspector-content').append(tileGrid3x3);
+
+
+
+
+		const tileInfo = currentMap.getAttributes(x, y, currentTiles);
+		let flipText = '-';
+		if (tileInfo.flipX && tileInfo.flipY)
+			flipText = 'XY';
+		else if (tileInfo.flipX)
+			flipText = 'X';
+		else if (tileInfo.flipY)
+			flipText = 'Y';
+		const textInfo = document.createElement('div');
+		textInfo.className = 'mono';
+		textInfo.innerHTML = `Position: ${x}, ${y}<br/>Tile index: ${toHex8(tileInfo.tileIndex)}<br/>Palette: ${tileInfo.paletteIndex}<br/>Flip: ${flipText}`;
+		$('#inspector-content').append(textInfo);
+	} else if (mode === 'tile') {
 		const tileIndex = param1;
 		const tile = currentTiles[tileIndex];
-		$('#inspector-content').text(`Tile index: ${tileIndex}`);
-	}else if(mode==='palette'){
+		if (tile) {
+			const mapCount = currentMap.tiles.reduce(function (count, tileInMap) {
+				return count + (tileInMap === tile ? 1 : 0);
+			}, 0);
+			const usedPaletteIndexes = currentMap.tiles.reduce(function (paletteIndexes, tileInMap, index) {
+				if (tileInMap === tile) {
+					const paletteIndex = (currentMap.attributes[index] >> 2) & 0x03;
+					if (!paletteIndexes.includes(paletteIndex)) {
+						paletteIndexes.push(paletteIndex);
+					}
+				}
+				return paletteIndexes;
+			}, []);
+			usedPaletteIndexes.sort((a, b) => a - b);
+
+
+			const tileGrid3x3 = document.createElement('div');
+			tileGrid3x3.className = 'inspector-tile-grid';
+			for (let i = 0; i < usedPaletteIndexes.length; i++) {
+				const paletteIndex = usedPaletteIndexes[i];
+				const canvas = document.createElement('canvas');
+				canvas.width = 8;
+				canvas.height = 8;
+				canvas.getContext('2d').putImageData(tile.toImageData(currentPalettes[paletteIndex], false, false), 0, 0);
+				tileGrid3x3.appendChild(canvas);
+			}
+			$('#inspector-content').append(tileGrid3x3);
+
+			const textInfo = document.createElement('div');
+			textInfo.className = 'mono';
+			textInfo.innerHTML = `Tile index: ${toHex8(tileIndex)}<br/>Palette${usedPaletteIndexes.length > 1 ? 's' : ''}: ${usedPaletteIndexes.join(', ')}<br/>Used in map: ${mapCount}`;
+			$('#inspector-content').append(textInfo);
+		}
+
+	} else if (mode === 'palette') {
 		const paletteIndex = param1;
-		$('#inspector-content').text(`Palette index: ${paletteIndex}`);
+		const mapCount = currentMap.tiles.reduce(function (count, tileInMap, index) {
+			const tilePaletteIndex = (currentMap.attributes[index] >> 2) & 0x03;
+			return count + (tilePaletteIndex === paletteIndex ? 1 : 0);
+		}, 0);
+		const textInfo = document.createElement('div');
+		textInfo.className = 'mono';
+		textInfo.innerHTML = `Palette index: ${paletteIndex}<br/>Used in map: ${mapCount}`;
+		$('#inspector-content').append(textInfo);
 	}
 }
-function closeInspector(){
+function closeInspector() {
 	$('#canvas-map').css('width', '256px');
 	$('#canvas-tiles').css('width', '128px');
-	$('#inspector').hide();	
+	$('#inspector').hide();
+}
+function toHex8(val) {
+	return '0x' + val.toString(16).padStart(2, '0');
 }

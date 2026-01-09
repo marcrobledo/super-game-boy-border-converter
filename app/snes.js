@@ -88,14 +88,14 @@ Tile4BPP.prototype.setPixel=function(row, col, colorIndex){
 	this.data[(row*2) + 16]=(this.data[(row*2) + 16] & Tile4BPP.COL_MASK_NEG[col]) | (((colorIndex >>> 2) & 0x01) << (7-col));
 	this.data[(row*2) + 17]=(this.data[(row*2) + 16 + 1] & Tile4BPP.COL_MASK_NEG[col]) | (((colorIndex >>> 3) & 0x01) << (7-col));
 }
-Tile4BPP.prototype.toImageData=function(palette){
-	var imageData=new ImageData(8, 8);
+Tile4BPP.prototype.toImageData=function(palette, flipX, flipY){
+	const imageData=new ImageData(8, 8);
 	var k=0;
 	for(var i=0; i<8; i++){
 		for(var j=0; j<8; j++){
-			imageData.data[k++]=palette.colors[this.getPixel(i, j)].r8;
-			imageData.data[k++]=palette.colors[this.getPixel(i, j)].g8;
-			imageData.data[k++]=palette.colors[this.getPixel(i, j)].b8;
+			imageData.data[k++]=palette.colors[this.getPixel(flipY? 7-i : i, flipX? 7-j : j)].r8;
+			imageData.data[k++]=palette.colors[this.getPixel(flipY? 7-i : i, flipX? 7-j : j)].g8;
+			imageData.data[k++]=palette.colors[this.getPixel(flipY? 7-i : i, flipX? 7-j : j)].b8;
 			imageData.data[k++]=255;
 		}
 	}
@@ -197,6 +197,20 @@ function Map(w, h){
 }
 Map.prototype.getTile=function(x, y){
 	return this.tiles[y * this.width + x];
+}
+Map.prototype.getAttributes=function(x, y, tileset){
+	if(x<0 || x>=this.width || y<0 || y>=this.height)
+		return null;
+
+	const tile=this.getTile(x, y);
+	const attributes=this.attributes[y * this.width + x];
+	return {
+		tile: tile,
+		tileIndex: tileset? tileset.indexOf(tile) : 0,
+		paletteIndex: (attributes >> 2) & 0b00000011,
+		flipX: !!(attributes & 0b01000000),
+		flipY: !!(attributes & 0b10000000)
+	};
 }
 
 

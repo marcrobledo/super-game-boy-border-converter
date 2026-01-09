@@ -371,7 +371,15 @@ select::-ms-expand{display:none}
 	padding: calc(var(--main-padding) / 2);
 	border-radius: var(--main-border-radius);
 }
-
+.inspector-tile-grid{
+	display:grid;
+	grid-template-columns: repeat(3, 1fr);
+	gap:8px;
+}
+.inspector-tile-grid>*{
+	width:64px;
+	height:64px;
+}
 
 
 
