@@ -156,30 +156,8 @@ $(document).ready((evt) => {
 
 	});
 
-	$('#canvas-map').on('click', function () {
-		if (this.style.width !== '512px') {
-			this.style.width = '512px';
-			$(this).addClass('zoom-out');
-			$(this).removeClass('zoom-in');
-		} else {
-			this.style.width = '256px';
-			$(this).addClass('zoom-in');
-			$(this).removeClass('zoom-out');
-		}
-	});
-	$('#canvas-tiles').on('click', function () {
-		if (this.style.width !== '256px') {
-			this.style.width = '256px';
-			$(this).addClass('zoom-out');
-			$(this).removeClass('zoom-in');
-		} else {
-			this.style.width = '128px';
-			$(this).addClass('zoom-in');
-			$(this).removeClass('zoom-out');
-		}
-	});
 
-	/* highlight mouse over tile */
+	/* inspector events */
 	$('#canvas-map').on('mousemove', function (evt) {
 		const tileSize = this.style.width !== '512px' ? 8 : 16;
 		const rect = this.getBoundingClientRect();
@@ -245,6 +223,35 @@ $(document).ready((evt) => {
 	$('#canvas-tiles').on('mouseout', _repaintCanvases);
 	$('#canvas-palettes').on('mouseout', _repaintCanvases);
 
+	$('#canvas-map').on('click', function (evt) {
+		evt.stopPropagation();
+		const tileSize = this.style.width !== '512px' ? 8 : 16;
+		const rect = this.getBoundingClientRect();
+		const x = Math.floor((evt.clientX - rect.left) / tileSize);
+		const y = Math.floor((evt.clientY - rect.top) / tileSize);
+		openInspector('map', x, y);
+	});
+	$('#canvas-tiles').on('click', function (evt) {
+		evt.stopPropagation();
+		const tileSize = this.style.width !== '256px' ? 8 : 16;
+		const rect = this.getBoundingClientRect();
+		const x = Math.floor((evt.clientX - rect.left) / tileSize);
+		const y = Math.floor((evt.clientY - rect.top) / tileSize);
+		const tileIndex = y * (this.width / 8) + x;
+		openInspector('tile', tileIndex);
+	});
+	$('#canvas-palettes').on('click', function (evt) {
+		evt.stopPropagation();
+		const rect = this.getBoundingClientRect();
+		const paletteIndex = Math.floor((evt.clientY - rect.top) / 16);
+		openInspector('palette', paletteIndex);
+	});
+	$('#inspector').on('click', function (evt) {
+		evt.stopPropagation();
+	});
+	$(document.body).on('click', function (evt) {
+		closeInspector();
+	});
 
 
 
@@ -748,4 +755,46 @@ function exportSGB() {
 	UI.savedTiles = true;
 	UI.savedPalettes = true;
 	UI.setWarnOnLeave();
+}
+
+
+
+
+/* inspector */
+function openInspector(mode, param1, param2){
+	$('#canvas-map').css('width', '512px');
+	$('#canvas-tiles').css('width', '256px');
+	$('#inspector').show();
+
+	$('#inspector-content').empty();
+	if(mode==='map'){
+		const x = param1;
+		const y = param2;
+		const tilePos = y * 32 + x;
+		const tile = currentMap.tiles[tilePos];
+		const tileIndex= currentTiles.indexOf(tile);
+		const paletteIndex = (currentMap.attributes[tilePos] >> 2) & 0x03;
+		const flipX = (currentMap.attributes[tilePos] & 0x40) !== 0;
+		const flipY = (currentMap.attributes[tilePos] & 0x80) !== 0;
+		let flipText='-';
+		if(flipX && flipY)
+			flipText='XY';
+		else if(flipX)
+			flipText='X';
+		else if(flipY)
+			flipText='Y';
+		$('#inspector-content').text(`X: ${x}, Y: ${y}, tile: ${tileIndex}, palette: ${paletteIndex}, Flip: ${flipText}`);
+	}else if(mode==='tile'){
+		const tileIndex = param1;
+		const tile = currentTiles[tileIndex];
+		$('#inspector-content').text(`Tile index: ${tileIndex}`);
+	}else if(mode==='palette'){
+		const paletteIndex = param1;
+		$('#inspector-content').text(`Palette index: ${paletteIndex}`);
+	}
+}
+function closeInspector(){
+	$('#canvas-map').css('width', '256px');
+	$('#canvas-tiles').css('width', '128px');
+	$('#inspector').hide();	
 }

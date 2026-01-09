@@ -117,7 +117,7 @@
 				<h2 class="mt-0">Result</h2>
 				<div>
 					<div class="text-center">
-						<div class="mb-5"><canvas id="canvas-map" width="256" height="224" class="zoomable"></canvas></div>
+						<div class="mb-5"><canvas id="canvas-map" width="256" height="224" class="inspectable"></canvas></div>
 						<button type="button" id="btn-export-map" class="btn" disabled><img src="assets/octicon_download.svg" class="octicon" /> Export map+attributes</button>
 					</div>
 				</div>
@@ -127,7 +127,7 @@
 						<h2>Tiles</h2>
 						<div class="text-center">
 							<div class="mb-5" style="display:flex; justify-content:center; align-items:center;">
-								<canvas id="canvas-tiles" width="128" height="8" class="zoomable"></canvas>
+								<canvas id="canvas-tiles" width="128" height="8" class="inspectable"></canvas>
 							</div>
 							<button type="button" id="btn-export-tiles" class="btn" disabled><img src="assets/octicon_download.svg" class="octicon" /> Export tiles</button>
 						</div>
@@ -137,7 +137,7 @@
 						<h2>Palettes</h2>
 						<div class="text-center">
 							<div class="mb-5" style="display:flex; justify-content:center; align-items:center;">
-								<canvas id="canvas-palettes" width="256" height="48"></canvas>
+								<canvas id="canvas-palettes" width="256" height="48" class="inspectable"></canvas>
 							</div>
 							<div id="lossless-message" class="mb-5 hide"><img src="assets/octicon_check.svg" class="octicon" /> No colors lost!</div>
 							<button type="button" id="btn-export-palettes" class="btn" disabled><img src="assets/octicon_download.svg" class="octicon" /> Export palettes</button>
@@ -153,6 +153,11 @@
 			</div>
 		</main>
 	</div>
+</div>
+
+<div id="inspector">
+	<h2 class="mt-0">Inspector</h2>
+	<div id="inspector-content"></div>
 </div>
 
 <footer>

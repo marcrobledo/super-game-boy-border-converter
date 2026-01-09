@@ -42,8 +42,6 @@ body{
 .text-center{text-align:center}
 .text-right{text-align:right}
 .text-muted{color:var(--color-muted); text-decoration:line-through;}
-.zoomable:hover{cursor:zoom-in}
-.zoomable.zoom-out:hover{cursor:zoom-out}
 .clickable:hover{cursor:pointer}
 span.clickable:hover{text-decoration:underline}
 .hide{display:none}
@@ -231,9 +229,7 @@ canvas{
 	image-rendering:pixelated;
 	-ms-interpolation-mode:nearest-neighbor;
 }
-
-
-
+canvas.inspectable:hover{cursor:zoom-in}
 
 
 
@@ -336,19 +332,6 @@ button.btn.btn-transparent:hover{
 }
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
 select{
 	background-color:transparent;
 	border:1px solid  #888;
@@ -368,6 +351,40 @@ select[disabled]{
 	background-image:url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZlcnNpb249IjEuMSIgeD0iMTJweCIgeT0iMHB4IiB3aWR0aD0iMjRweCIgaGVpZ2h0PSIzcHgiIHZpZXdCb3g9IjAgMCA2IDMiIGVuYWJsZS1iYWNrZ3JvdW5kPSJuZXcgMCAwIDYgMyIgeG1sOnNwYWNlPSJwcmVzZXJ2ZSI+PHBvbHlnb24gcG9pbnRzPSI1Ljk5MiwwIDIuOTkyLDMgLTAuMDA4LDAgIiBmaWxsPSIjODg4Ii8+PC9zdmc+");
 }
 select::-ms-expand{display:none}
+
+
+
+
+
+
+
+
+
+/* inspector */
+#inspector{
+	display:none;
+	position:fixed;
+	bottom: 16px;
+	right: 16px;
+	background-color: var(--color-fg);
+	box-shadow: var(--color-bg) 0 0 0 3px, #7b82f0 0 0 0 5px;
+	padding: calc(var(--main-padding) / 2);
+	border-radius: var(--main-border-radius);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
