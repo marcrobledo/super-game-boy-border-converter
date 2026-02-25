@@ -155,6 +155,9 @@ $(document).ready((evt) => {
 		}
 
 	});
+	$('#btn-inspector-unpin').on('click', (evt) => {
+		$('#inspector').removeClass('pinned');
+	});
 
 
 	/* inspector events */
@@ -670,7 +673,7 @@ function secondStep() {
 		UI.setWarnOnLeave();
 	} else {
 		tryWorkerLossless = false;
-		UI.notifications.error('256 tiles SNES limit exceeded. Edit manually your image and try to reduce the amount of unique 8x8 tiles. <a href="https://github.com/marcrobledo/super-game-boy-border-converter?tab=readme-ov-file#improving-conversion-results" target="_blank">More information</a>');
+		UI.notifications.error('256 tiles SNES limit exceeded (' + (currentTiles.length - 256) + ' tiles). Edit manually your image and try to reduce the amount of unique 8x8 tiles. <a href="https://github.com/marcrobledo/super-game-boy-border-converter?tab=readme-ov-file#improving-conversion-results" target="_blank">More information</a>');
 	}
 
 	/* save image data for repaint canvases */
@@ -768,7 +771,8 @@ function openInspector() {
 	refreshInspector();
 }
 function refreshInspector() {
-	$('#inspector-content').empty();
+	$('#inspector-zoom').empty();
+	$('#inspector-text').empty();
 	const currentInspectionSplit = latestInspection.split('-');
 	const mode = currentInspectionSplit[0];
 	const param1 = parseInt(currentInspectionSplit[1]);
@@ -794,7 +798,7 @@ function refreshInspector() {
 				}
 			}
 		}
-		$('#inspector-content').append(tileGrid3x3);
+		$('#inspector-zoom').append(tileGrid3x3);
 
 
 
@@ -807,10 +811,13 @@ function refreshInspector() {
 			flipText = 'X';
 		else if (tileInfo.flipY)
 			flipText = 'Y';
+		const mapCount = currentMap.tiles.reduce(function (count, tileInMap) {
+			return count + (tileInMap === currentTiles[tileInfo.tileIndex] ? 1 : 0);
+		}, 0);
 		const textInfo = document.createElement('div');
 		textInfo.className = 'mono';
-		textInfo.innerHTML = `Position: ${x}, ${y}<br/>Tile index: ${toHex8(tileInfo.tileIndex)}<br/>Palette: ${tileInfo.paletteIndex}<br/>Flip: ${flipText}`;
-		$('#inspector-content').append(textInfo);
+		textInfo.innerHTML = `Position: ${x}, ${y}<br/>Tile index: ${toHex8(tileInfo.tileIndex)}<br/>Palette: ${tileInfo.paletteIndex}<br/>Flip: ${flipText}<br/>Times used: ${mapCount}`;
+		$('#inspector-text').append(textInfo);
 	} else if (mode === 'tile') {
 		const tileIndex = param1;
 		const tile = currentTiles[tileIndex];
@@ -840,12 +847,12 @@ function refreshInspector() {
 				canvas.getContext('2d').putImageData(tile.toImageData(currentPalettes[paletteIndex], false, false), 0, 0);
 				tileGrid3x3.appendChild(canvas);
 			}
-			$('#inspector-content').append(tileGrid3x3);
+			$('#inspector-zoom').append(tileGrid3x3);
 
 			const textInfo = document.createElement('div');
 			textInfo.className = 'mono';
-			textInfo.innerHTML = `Tile index: ${toHex8(tileIndex)}<br/>Palette${usedPaletteIndexes.length > 1 ? 's' : ''}: ${usedPaletteIndexes.join(', ')}<br/>Used in map: ${mapCount}`;
-			$('#inspector-content').append(textInfo);
+			textInfo.innerHTML = `Tile index: ${toHex8(tileIndex)}<br/>Palette${usedPaletteIndexes.length > 1 ? 's' : ''}: ${usedPaletteIndexes.join(', ')}<br/>Times used: ${mapCount}`;
+			$('#inspector-text').append(textInfo);
 		}
 
 	} else if (mode === 'palette') {
@@ -857,7 +864,7 @@ function refreshInspector() {
 		const textInfo = document.createElement('div');
 		textInfo.className = 'mono';
 		textInfo.innerHTML = `Palette index: ${paletteIndex}<br/>Used in map: ${mapCount}`;
-		$('#inspector-content').append(textInfo);
+		$('#inspector-text').append(textInfo);
 	}
 }
 function closeInspector() {
