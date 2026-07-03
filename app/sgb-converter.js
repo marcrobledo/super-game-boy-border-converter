@@ -1,7 +1,7 @@
 /*
 * Super Game Boy border converter
 * Online PNG to SGB raw data border converter
-* (last update: 2026-01-09)
+* (last update: 2026-07-03)
 * By Marc Robledo https://www.marcrobledo.com
 *
 * License:
@@ -673,7 +673,7 @@ function secondStep() {
 		UI.setWarnOnLeave();
 	} else {
 		tryWorkerLossless = false;
-		UI.notifications.error('256 tiles SNES limit exceeded (' + (currentTiles.length - 256) + ' tiles). Edit manually your image and try to reduce the amount of unique 8x8 tiles. <a href="https://github.com/marcrobledo/super-game-boy-border-converter?tab=readme-ov-file#improving-conversion-results" target="_blank">More information</a>');
+		UI.notifications.error('256 tiles SNES limit exceeded (' + currentTiles.length + ' tiles). Edit manually your image and try to reduce the amount of unique 8x8 tiles. <a href="https://github.com/marcrobledo/super-game-boy-border-converter?tab=readme-ov-file#improving-conversion-results" target="_blank">More information</a>');
 	}
 
 	/* save image data for repaint canvases */
